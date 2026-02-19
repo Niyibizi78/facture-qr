@@ -1,7 +1,6 @@
 export default async function handler(req, res) {
     const API_KEY = "470c4624af8127aa1a817668b63399ef";
-    // On demande les factures triées par ID décroissant (la plus récente en premier)
-    const url = "https://axonaut.com/api/v2/invoices?sort=-id&limit=1";
+    const url = "https://axonaut.com/api/v2/invoices";
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
@@ -21,16 +20,14 @@ export default async function handler(req, res) {
             return res.send("<h1>Aucune facture trouvée.</h1>");
         }
 
-        // On récupère la facture (normalement la plus récente grâce au sort=-id)
+        // On prend la toute première de la liste
         const inv = invoices[0];
 
-        // On récupère les vraies données de la facture Axonaut
+        // On nettoie les données pour éviter le "undefined"
         const montant = inv.total_amount || "0.00";
         const client = inv.customer ? inv.customer.name : "Client inconnu";
-        const numero = inv.number || "Sans numéro";
-        
-        // C'est ici que le lien vers le vrai PDF est généré
-        const lienPDF = inv.public_path || "#";
+        const numero = inv.number || "N/A";
+        const lien = inv.public_path || "#";
 
         return res.send(`
             <html>
@@ -40,23 +37,22 @@ export default async function handler(req, res) {
                     body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f7f6; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
                     .card { max-width: 400px; width: 90%; background: white; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); border-top: 10px solid #e67e22; }
                     h1 { color: #e67e22; font-size: 50px; margin: 15px 0; }
-                    p { color: #2d3436; font-size: 18px; margin: 5px 0; }
-                    .btn { display: block; background: #e67e22; color: white; padding: 18px; border-radius: 15px; text-decoration: none; font-weight: bold; font-size: 18px; margin-top: 25px; }
+                    p { color: #2d3436; font-size: 18px; line-height: 1.6; }
+                    .btn { display: block; background: #e67e22; color: white; padding: 18px; border-radius: 15px; text-decoration: none; font-weight: bold; font-size: 18px; margin-top: 25px; transition: 0.3s; }
                 </style>
             </head>
             <body>
                 <div class="card">
-                    <p style="text-transform: uppercase; color: #636e72; font-size: 12px; font-weight: bold;">Dernière Facture Validée</p>
+                    <p style="text-transform: uppercase; letter-spacing: 1px; color: #636e72; font-size: 13px; font-weight: bold;">Dernière Facture</p>
                     <h1>${montant} €</h1>
-                    <p>Facture <b>${numero}</b></p>
-                    <p>Client : <b>${client}</b></p>
-                    <a href="${lienPDF}" target="_blank" class="btn">OUVRIR LE PDF</a>
+                    <p>Facture <b>${numero}</b><br>Client : <b>${client}</b></p>
+                    <a href="${lien}" target="_blank" class="btn">VOIR LA FACTURE</a>
                 </div>
             </body>
             </html>
         `);
 
     } catch (e) {
-        return res.send(`<h1>Erreur Axonaut</h1><p>${e.message}</p>`);
+        return res.send(`<h1>Erreur de lecture</h1><p>${e.message}</p>`);
     }
 }

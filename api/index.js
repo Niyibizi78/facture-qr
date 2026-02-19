@@ -1,6 +1,7 @@
 export default async function handler(req, res) {
     const API_KEY = "470c4624af8127aa1a817668b63399ef";
-    const url = "https://axonaut.com/api/v2/invoices?limit=1&sort=-id";
+    // On demande la liste globale sans filtre complexe qui pourrait échouer
+    const url = "https://axonaut.com/api/v2/invoices";
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
@@ -8,7 +9,7 @@ export default async function handler(req, res) {
         const response = await fetch(url, {
             method: 'GET',
             headers: {
-                'userApiKey': API_KEY, // Voici le changement magique !
+                'userApiKey': API_KEY,
                 'Accept': 'application/json'
             }
         });
@@ -19,11 +20,23 @@ export default async function handler(req, res) {
         }
 
         const data = await response.json();
-        const inv = (data.data && data.data.length > 0) ? data.data[0] : null;
+        
+        // On récupère le tableau, qu'il soit dans data.data ou directement dans data
+        let invoices = (data.data && Array.isArray(data.data)) ? data.data : (Array.isArray(data) ? data : []);
 
-        if (!inv) {
-            return res.send("<h1>Connexion Réussie ! ✅</h1><p>Mais aucune facture validée n'a été trouvée. Allez dans Axonaut et validez une facture.</p>");
+        if (invoices.length === 0) {
+            // PETIT TEST : Si c'est vide, on affiche la réponse brute pour comprendre pourquoi
+            return res.send(`
+                <h1>Connexion Réussie ! ✅</h1>
+                <p>Mais la liste renvoyée par Axonaut est vide.</p>
+                <p><b>Détail technique (JSON) :</b> ${JSON.stringify(data)}</p>
+                <p><i>Si vous voyez "[]" ci-dessus, c'est qu'Axonaut ne trouve aucune facture liée à cette clé API.</i></p>
+            `);
         }
+
+        // On trie par ID pour avoir la plus récente en premier
+        invoices.sort((a, b) => b.id - a.id);
+        const inv = invoices[0];
 
         return res.send(`
             <html>

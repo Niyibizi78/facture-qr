@@ -1,7 +1,5 @@
 export default async function handler(req, res) {
     const API_KEY = "470c4624af8127aa1a817668b63399ef";
-    
-    // URL MISE À JOUR (Sans le "api." devant)
     const url = "https://axonaut.com/api/v2/invoices?limit=1&sort=-id";
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -10,7 +8,7 @@ export default async function handler(req, res) {
         const response = await fetch(url, {
             method: 'GET',
             headers: {
-                'userConfig': API_KEY,
+                'userApiKey': API_KEY, // Voici le changement magique !
                 'Accept': 'application/json'
             }
         });
@@ -24,7 +22,7 @@ export default async function handler(req, res) {
         const inv = (data.data && data.data.length > 0) ? data.data[0] : null;
 
         if (!inv) {
-            return res.send("<h1>Connexion Réussie ! ✅</h1><p>Mais aucune facture validée n'a été trouvée. Validez une facture dans Axonaut pour qu'elle s'affiche ici.</p>");
+            return res.send("<h1>Connexion Réussie ! ✅</h1><p>Mais aucune facture validée n'a été trouvée. Allez dans Axonaut et validez une facture.</p>");
         }
 
         return res.send(`

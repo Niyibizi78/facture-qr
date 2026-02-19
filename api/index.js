@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
     const API_KEY = "470c4624af8127aa1a817668b63399ef";
-    // On demande la liste globale sans filtre complexe qui pourrait échouer
-    const url = "https://axonaut.com/api/v2/invoices";
+    // On demande les factures triées par ID décroissant (la plus récente en premier)
+    const url = "https://axonaut.com/api/v2/invoices?sort=-id&limit=1";
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
@@ -14,45 +14,49 @@ export default async function handler(req, res) {
             }
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            return res.send(`<h1>Erreur Axonaut</h1><p>Statut : ${response.status}</p><p>${errorText}</p>`);
-        }
-
         const data = await response.json();
-        
-        // On récupère le tableau, qu'il soit dans data.data ou directement dans data
-        let invoices = (data.data && Array.isArray(data.data)) ? data.data : (Array.isArray(data) ? data : []);
+        let invoices = data.data || [];
 
         if (invoices.length === 0) {
-            // PETIT TEST : Si c'est vide, on affiche la réponse brute pour comprendre pourquoi
-            return res.send(`
-                <h1>Connexion Réussie ! ✅</h1>
-                <p>Mais la liste renvoyée par Axonaut est vide.</p>
-                <p><b>Détail technique (JSON) :</b> ${JSON.stringify(data)}</p>
-                <p><i>Si vous voyez "[]" ci-dessus, c'est qu'Axonaut ne trouve aucune facture liée à cette clé API.</i></p>
-            `);
+            return res.send("<h1>Aucune facture trouvée.</h1>");
         }
 
-        // On trie par ID pour avoir la plus récente en premier
-        invoices.sort((a, b) => b.id - a.id);
+        // On récupère la facture (normalement la plus récente grâce au sort=-id)
         const inv = invoices[0];
+
+        // On récupère les vraies données de la facture Axonaut
+        const montant = inv.total_amount || "0.00";
+        const client = inv.customer ? inv.customer.name : "Client inconnu";
+        const numero = inv.number || "Sans numéro";
+        
+        // C'est ici que le lien vers le vrai PDF est généré
+        const lienPDF = inv.public_path || "#";
 
         return res.send(`
             <html>
-            <head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-            <body style="font-family:sans-serif; text-align:center; padding:50px; background:#f4f7f6;">
-                <div style="max-width:400px; margin:auto; background:white; padding:30px; border-radius:20px; box-shadow:0 10px 20px rgba(0,0,0,0.1); border-top:8px solid #e67e22;">
-                    <h1 style="color:#e67e22; font-size:45px; margin:10px 0;">${inv.total_ttc} €</h1>
-                    <p>Facture <strong>${inv.number}</strong></p>
-                    <p>Client : ${inv.customer_name}</p>
-                    <a href="${inv.public_path}" target="_blank" style="display:block; background:#e67e22; color:white; padding:15px; border-radius:10px; text-decoration:none; font-weight:bold; margin-top:20px;">VOIR LA FACTURE</a>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f7f6; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+                    .card { max-width: 400px; width: 90%; background: white; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); border-top: 10px solid #e67e22; }
+                    h1 { color: #e67e22; font-size: 50px; margin: 15px 0; }
+                    p { color: #2d3436; font-size: 18px; margin: 5px 0; }
+                    .btn { display: block; background: #e67e22; color: white; padding: 18px; border-radius: 15px; text-decoration: none; font-weight: bold; font-size: 18px; margin-top: 25px; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <p style="text-transform: uppercase; color: #636e72; font-size: 12px; font-weight: bold;">Dernière Facture Validée</p>
+                    <h1>${montant} €</h1>
+                    <p>Facture <b>${numero}</b></p>
+                    <p>Client : <b>${client}</b></p>
+                    <a href="${lienPDF}" target="_blank" class="btn">OUVRIR LE PDF</a>
                 </div>
             </body>
             </html>
         `);
 
     } catch (e) {
-        return res.send(`<h1>Erreur de connexion</h1><p>Détail : ${e.message}</p>`);
+        return res.send(`<h1>Erreur Axonaut</h1><p>${e.message}</p>`);
     }
 }
